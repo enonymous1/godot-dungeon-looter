@@ -1,12 +1,18 @@
 ## A loot drop lying on the dungeon floor: a rarity-colored diamond
 ## with the item name above it. The main scene picks it up when the
 ## player walks onto it after clicking it.
+## Call setup() BEFORE adding the node to the tree: the name label
+## is built in _ready from `item`, so a late setup would leave the
+## label saying "Item".
 class_name LootDrop
 extends Node2D
+
+const BOB_INTERVAL := 0.066
 
 var item: Dictionary = {}
 
 var _bob := 0.0
+var _redraw_timer := 0.0
 
 
 func setup(p_item: Dictionary, pos: Vector2) -> void:
@@ -24,8 +30,13 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	# The bob is a slow sine, so 15 Hz redraws are indistinguishable
+	# from every frame and cost a fraction of the draw calls.
 	_bob += delta
-	queue_redraw()
+	_redraw_timer += delta
+	if _redraw_timer >= BOB_INTERVAL:
+		_redraw_timer = 0.0
+		queue_redraw()
 
 
 func _draw() -> void:

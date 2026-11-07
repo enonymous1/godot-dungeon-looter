@@ -1,0 +1,65 @@
+```mermaid
+flowchart TD
+    Main["Main (Node2D)<br/>composition root"]
+    HUD["LooterHUD (CanvasLayer)<br/>bars, log, inventory, death"]
+    Player["LooterPlayer<br/>move, attack, inventory"]
+    Enemy["LooterEnemy<br/>aggro, chase, attack"]
+    Drop["LootDrop<br/>rarity diamond + label"]
+    View["DungeonView<br/>floor, walls, torches"]
+    LootLogic["LootLogic<br/>rarity, items, affixes"]
+    CombatLogic["CombatLogic<br/>damage, XP, potions"]
+    DungeonLogic["DungeonLogic<br/>floor, walls, spawns"]
+    Tests["tests/<br/>127 headless checks"]
+
+    Main --> HUD
+    Main --> Player
+    Main --> Enemy
+    Main --> Drop
+    Main --> View
+    Player --> LootLogic
+    Player --> CombatLogic
+    Player --> DungeonLogic
+    Enemy --> CombatLogic
+    Drop --> LootLogic
+    View --> DungeonLogic
+    Main --> LootLogic
+    Main --> CombatLogic
+    Main --> DungeonLogic
+    HUD --> LootLogic
+    HUD --> CombatLogic
+    HUD --> DungeonLogic
+    Tests --> LootLogic
+    Tests --> CombatLogic
+    Tests --> DungeonLogic
+    Tests --> Main
+
+    subgraph Pure ["Pure logic — no nodes, no I/O"]
+        LootLogic
+        CombatLogic
+        DungeonLogic
+    end
+    subgraph Scene ["Scene nodes"]
+        Main
+        HUD
+        Player
+        Enemy
+        Drop
+        View
+    end
+```
+
+## How to read it
+
+- **Pure logic** (`LootLogic`, `CombatLogic`, `DungeonLogic`)
+  never touches a node or the filesystem. Every random input
+  arrives as an explicit float, which is why the logic tests
+  can pin exact values without running a scene.
+- **Scene nodes** own behaviour and presentation only. `Main`
+  is the composition root: it builds the dungeon, spawns the
+  player and enemies, owns the camera, and routes clicks.
+- **HUD** is the only node that talks to the player through a
+  signal (`stats_changed`); everything else Main drives with
+  direct calls (`log`, `set_kills`, `show_death`).
+- **Tests** load the logic classes directly and instantiate
+  the main scene for the smoke test. No test needs a rendered
+  frame, which is why they run headless in CI.

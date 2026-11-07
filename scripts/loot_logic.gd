@@ -15,6 +15,11 @@ const RARITY_COLORS := [
 	Color(1.0, 0.85, 0.25),
 ]
 
+## Rarity roll thresholds: below MAGIC is Normal, below RARE is Magic,
+## the rest is Rare. Named so the 60/30/10 split is tunable in one place.
+const MAGIC_THRESHOLD := 0.60
+const RARE_THRESHOLD := 0.90
+
 ## Drop chance per enemy type (roll < chance drops an item).
 const DROP_CHANCE := {"skeleton": 0.35, "zombie": 0.45}
 
@@ -36,13 +41,12 @@ const RARE_SUFFIXES := ["of the Bear", "of Power", "of the Wolf", "of Warding"]
 const WEAPON_AFFIX_STATS := ["damage", "strength", "vitality"]
 const ARMOR_AFFIX_STATS := ["armor", "vitality", "strength"]
 
-## Rarity roll thresholds: < 0.60 Normal, < 0.90 Magic, else Rare.
 ## @param roll: Float in [0, 1).
 ## @returns: A Rarity enum value.
 static func roll_rarity(roll: float) -> int:
-	if roll < 0.60:
+	if roll < MAGIC_THRESHOLD:
 		return Rarity.NORMAL
-	if roll < 0.90:
+	if roll < RARE_THRESHOLD:
 		return Rarity.MAGIC
 	return Rarity.RARE
 
@@ -96,30 +100,39 @@ static func affix_value(stat: String, roll: float) -> int:
 	return 0
 
 
-## Generate one item. Rolls layout: [0] base pick, [1] prefix/suffix
-## pick, [2..] one roll per affix (stat pick, then value roll each).
+## Generate one item. Rolls layout: [0] base pick, [1] prefix pick,
+## [2] suffix pick, [3..] one stat/value roll pair per affix.
+## Prefix and suffix take separate rolls on purpose: sharing one roll
+## correlated them, so Rare items only ever produced four fixed
+## prefix/suffix pairs instead of sixteen combinations.
 ## Missing rolls default to 0.5, so short arrays still work.
+## An unknown kind returns an empty Dictionary instead of silently
+## building a weapon out of a typo; the unknown-kind test pins this.
 ## @param kind: "weapon" or "armor".
 ## @param rarity: A Rarity enum value.
 ## @param rolls: Array of floats in [0, 1).
 ## @returns: Item Dictionary (kind, name, rarity, damage_min,
-##   damage_max, armor, affixes, level_req).
+##   damage_max, armor, affixes, level_req), or {} for an unknown kind.
 static func generate_item(kind: String, rarity: int, rolls: Array) -> Dictionary:
 	var r0: float = _roll_at(rolls, 0)
 	var r1: float = _roll_at(rolls, 1)
+	var r2: float = _roll_at(rolls, 2)
 	var item := {"kind": kind, "rarity": rarity, "damage_min": 0,
 		"damage_max": 0, "armor": 0, "affixes": [], "level_req": 1}
-	if kind == "armor":
-		var base: Dictionary = ARMOR_BASES[clampi(int(r0 * float(ARMOR_BASES.size())), 0, ARMOR_BASES.size() - 1)]
-		item["armor"] = int(base["armor"]) + rarity
-		item["name"] = _named(base["name"], rarity, r1)
-		item["affixes"] = _roll_affixes(ARMOR_AFFIX_STATS, rarity, rolls)
-	else:
-		var wbase: Dictionary = WEAPON_BASES[clampi(int(r0 * float(WEAPON_BASES.size())), 0, WEAPON_BASES.size() - 1)]
-		item["damage_min"] = int(wbase["min"]) + rarity
-		item["damage_max"] = int(wbase["max"]) + rarity * 2
-		item["name"] = _named(wbase["name"], rarity, r1)
-		item["affixes"] = _roll_affixes(WEAPON_AFFIX_STATS, rarity, rolls)
+	match kind:
+		"armor":
+			var base: Dictionary = ARMOR_BASES[clampi(int(r0 * float(ARMOR_BASES.size())), 0, ARMOR_BASES.size() - 1)]
+			item["armor"] = int(base["armor"]) + rarity
+			item["name"] = _named(base["name"], rarity, r1, r2)
+			item["affixes"] = _roll_affixes(ARMOR_AFFIX_STATS, rarity, rolls)
+		"weapon":
+			var wbase: Dictionary = WEAPON_BASES[clampi(int(r0 * float(WEAPON_BASES.size())), 0, WEAPON_BASES.size() - 1)]
+			item["damage_min"] = int(wbase["min"]) + rarity
+			item["damage_max"] = int(wbase["max"]) + rarity * 2
+			item["name"] = _named(wbase["name"], rarity, r1, r2)
+			item["affixes"] = _roll_affixes(WEAPON_AFFIX_STATS, rarity, rolls)
+		_:
+			return {}
 	return item
 
 
@@ -173,19 +186,28 @@ static func _roll_at(rolls: Array, index: int) -> float:
 	return 0.5
 
 
-static func _named(base_name: String, rarity: int, roll: float) -> String:
+static func _named(base_name: String, rarity: int, prefix_roll: float, suffix_roll: float) -> String:
 	if rarity == Rarity.MAGIC:
-		return MAGIC_PREFIXES[clampi(int(roll * float(MAGIC_PREFIXES.size())), 0, MAGIC_PREFIXES.size() - 1)] + " " + base_name
+		return _prefix(prefix_roll) + " " + base_name
 	if rarity == Rarity.RARE:
-		return MAGIC_PREFIXES[clampi(int(roll * float(MAGIC_PREFIXES.size())), 0, MAGIC_PREFIXES.size() - 1)] + " " + base_name + " " + RARE_SUFFIXES[clampi(int(roll * float(RARE_SUFFIXES.size())), 0, RARE_SUFFIXES.size() - 1)]
+		return _prefix(prefix_roll) + " " + base_name + " " + _suffix(suffix_roll)
 	return base_name
+
+
+static func _prefix(roll: float) -> String:
+	return MAGIC_PREFIXES[clampi(int(roll * float(MAGIC_PREFIXES.size())), 0, MAGIC_PREFIXES.size() - 1)]
+
+
+static func _suffix(roll: float) -> String:
+	return RARE_SUFFIXES[clampi(int(roll * float(RARE_SUFFIXES.size())), 0, RARE_SUFFIXES.size() - 1)]
 
 
 static func _roll_affixes(pool: Array, rarity: int, rolls: Array) -> Array:
 	var count := affix_count_for_rarity(rarity)
 	var affixes: Array = []
 	var used: Array = []
-	var roll_index := 2
+	# Affix rolls start at index 3: [0] base, [1] prefix, [2] suffix.
+	var roll_index := 3
 	for i in count:
 		var stat_index := clampi(int(_roll_at(rolls, roll_index) * float(pool.size())), 0, pool.size() - 1)
 		roll_index += 1

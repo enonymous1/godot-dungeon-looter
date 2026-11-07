@@ -40,6 +40,15 @@ func _run_all() -> void:
 		elif String(spawn["type"]) == "zombie":
 			zombies += 1
 	_check(DungeonLogic.ENEMY_SPAWNS.size() == 8, "floor has 8 enemy spawns")
+	_check(DungeonLogic.total_enemies() == 8, "total_enemies() is 8")
+	# Every spawn type must have stats and a drop chance, or Main
+	# would skip the spawn at startup.
+	var spawns_valid := true
+	for spawn in DungeonLogic.ENEMY_SPAWNS:
+		var spawn_type := String(spawn["type"])
+		if CombatLogic.enemy_stats(spawn_type).is_empty() or not LootLogic.DROP_CHANCE.has(spawn_type):
+			spawns_valid = false
+	_check(spawns_valid, "every spawn type has stats and a drop chance")
 	_check(skeletons == 5, "floor has 5 skeletons")
 	_check(zombies == 3, "floor has 3 zombies")
 	# Walls block, door gaps do not.

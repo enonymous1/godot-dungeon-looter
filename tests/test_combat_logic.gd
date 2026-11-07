@@ -64,4 +64,6 @@ func _run_all() -> void:
 	_check(int(skeleton["hp"]) == 30 and int(skeleton["xp"]) == 25, "skeleton is 30 HP, 25 XP")
 	var zombie: Dictionary = CombatLogic.enemy_stats("zombie")
 	_check(int(zombie["hp"]) == 50 and int(zombie["speed"]) == 34, "zombie is 50 HP, slower than skeleton")
+	_check(float(skeleton["attack_cooldown"]) == 1.0 and float(skeleton["crit_chance"]) == 0.05, "skeleton attacks every 1.0s with 5% crit")
+	_check(float(zombie["attack_cooldown"]) == 1.0 and float(zombie["crit_chance"]) == 0.05, "zombie attacks every 1.0s with 5% crit")
 	_check(CombatLogic.enemy_stats("demon").is_empty(), "unknown enemy type has no stats")

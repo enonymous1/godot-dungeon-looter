@@ -59,14 +59,22 @@ func _run_all() -> void:
 		if enemy.is_alive() and int(enemy.hp) > 0:
 			alive += 1
 	_check(alive == 8, "all 8 enemies start alive")
-	_check(_main._hp_bar != null and _main._xp_bar != null, "HUD bars exist")
-	_check(_main._slot_buttons.size() == 12, "inventory grid has 12 slots")
+	_check(_main._hud != null, "HUD exists")
+	_check(_main._hud.get_slot_count() == 12, "inventory grid has 12 slots")
 	_check(_main._camera != null and _main._camera.limit_right == 1600, "camera exists with floor limits")
 	var has_view := false
 	for child in _main.get_children():
 		if child is DungeonView:
 			has_view = true
 	_check(has_view, "dungeon view exists")
+	# The pickup radius must exceed the player's loot stop distance,
+	# or the player would stop short of a drop and never pick it up.
+	_check(_main.PICKUP_RADIUS > player.LOOT_STOP_DIST, "pickup radius exceeds loot stop distance")
+	# Unknown enemy types are rejected at setup instead of spawning
+	# a default-stat enemy with a mismatched name.
+	var bad_enemy = LooterEnemy.new()
+	_check(not bad_enemy.setup("demon", Vector2(400, 400)), "setup rejects an unknown enemy type")
+	bad_enemy.free()
 	# Target an enemy and kill it: XP is awarded and the kill counts.
 	var enemy = _main._enemies[0]
 	player.set_attack_target(enemy)
@@ -74,7 +82,7 @@ func _run_all() -> void:
 	enemy.take_damage(1000, null)
 	_check(_main._kills == 1, "killing an enemy counts a kill")
 	_check(_main._enemies.size() == 7, "dead enemy leaves the enemy list")
-	_check(player.xp == 25 or player.level == 2, "killing a skeleton awards its XP")
+	_check(player.xp == 25 and player.level == 1, "killing a skeleton awards exactly 25 XP")
 	# Loot: give the player a Rare weapon, equip it, damage rises.
 	var item: Dictionary = LootLogic.generate_item("weapon", LootLogic.Rarity.RARE, [0.99, 0.0, 0.0, 0.0, 0.0, 0.0])
 	_check(player.add_item(item), "loot fits in the inventory")
@@ -92,7 +100,7 @@ func _run_all() -> void:
 	_check(player.hp > hp_before and player.potions == potions_before - 1, "potion heals and spends one potion")
 	player.take_damage(9999)
 	_check(not player.is_alive(), "lethal damage kills the player")
-	_check(_main._death_overlay.visible, "death overlay shows on death")
+	_check(_main._hud.is_death_visible(), "death overlay shows on death")
 	_main._on_respawn()
 	_check(player.is_alive() and player.hp == player.max_hp, "respawn revives at full HP")
 	_check(player.global_position == DungeonLogic.PLAYER_SPAWN, "respawn returns the player to the entrance")

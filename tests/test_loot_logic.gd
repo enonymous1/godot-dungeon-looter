@@ -65,6 +65,12 @@ func _run_all() -> void:
 		rare_stats.append(affix["stat"])
 	_check(rare_stats[0] != rare_stats[1], "Rare affix stats are distinct")
 	_check(int(rare["affixes"][0]["value"]) == 2, "first Rare affix is +2 damage")
+	# Prefix and suffix roll independently: same prefix roll (0.0),
+	# different suffix roll (0.99) must give a different suffix.
+	var varied: Dictionary = LootLogic.generate_item("weapon", LootLogic.Rarity.RARE, [0.99, 0.0, 0.99, 0.0, 0.0, 0.0, 0.0])
+	_check(String(varied["name"]) == "Soldier's Battle Axe of Warding", "prefix and suffix roll independently")
+	# Unknown kinds generate nothing instead of a silent weapon.
+	_check(LootLogic.generate_item("potion", LootLogic.Rarity.NORMAL, [0.0]).is_empty(), "unknown item kind generates nothing")
 	# Magic armor: Chain Mail base, +1 rarity armor, 1 affix, prefixed name.
 	var mail: Dictionary = LootLogic.generate_item("armor", LootLogic.Rarity.MAGIC, [0.5, 0.0, 0.0, 0.0])
 	_check(String(mail["name"]) == "Soldier's Chain Mail", "Magic armor name has a prefix")

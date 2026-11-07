@@ -1,11 +1,23 @@
 ## Draws the dungeon floor: dark stone tiles, walls, torches.
 ## Collision bodies live in main.gd; this node is visual only.
+## The floor is static except for the torch flicker, so it redraws
+## at 8 Hz instead of every frame — redrawing the whole tile grid
+## per frame was the most expensive draw in the game for a picture
+## that barely changes.
 class_name DungeonView
 extends Node2D
 
+const TILE_SIZE := 80.0
+const REDRAW_INTERVAL := 0.125
 
-func _process(_delta: float) -> void:
-	queue_redraw()
+var _redraw_timer := 0.0
+
+
+func _process(delta: float) -> void:
+	_redraw_timer += delta
+	if _redraw_timer >= REDRAW_INTERVAL:
+		_redraw_timer = 0.0
+		queue_redraw()
 
 
 func _draw() -> void:
@@ -13,14 +25,14 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, DungeonLogic.FLOOR_SIZE), Color(0.13, 0.12, 0.14))
 	# Tile grid.
 	var grid_color := Color(0.18, 0.17, 0.19)
-	var x := 80.0
+	var x := TILE_SIZE
 	while x < DungeonLogic.FLOOR_SIZE.x:
 		draw_line(Vector2(x, 0), Vector2(x, DungeonLogic.FLOOR_SIZE.y), grid_color, 1.0)
-		x += 80.0
-	var y := 80.0
+		x += TILE_SIZE
+	var y := TILE_SIZE
 	while y < DungeonLogic.FLOOR_SIZE.y:
 		draw_line(Vector2(0, y), Vector2(DungeonLogic.FLOOR_SIZE.x, y), grid_color, 1.0)
-		y += 80.0
+		y += TILE_SIZE
 	# Outer walls.
 	var wall_color := Color(0.05, 0.05, 0.07)
 	var edge_color := Color(0.3, 0.28, 0.32)

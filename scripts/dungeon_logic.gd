@@ -2,6 +2,8 @@
 ## 1600x1200, three interior walls with door gaps, fixed spawns.
 ## The game builds collision bodies from WALLS; the tests assert
 ## every spawn is walkable and inside the floor.
+## A second floor wants a DungeonFloor resource holding these same
+## fields, not a second copy of this class.
 class_name DungeonLogic
 extends RefCounted
 
@@ -34,6 +36,11 @@ const TORCHES := [
 	Vector2(120, 120), Vector2(1480, 120), Vector2(120, 1080),
 	Vector2(1480, 1080), Vector2(800, 600),
 ]
+
+## @returns: Number of enemies on this floor (8 in this slice).
+static func total_enemies() -> int:
+	return ENEMY_SPAWNS.size()
+
 
 ## @param pos: Point to test.
 ## @param radius: Body radius to keep clear of walls and bounds.

@@ -18,11 +18,15 @@ const PLAYER_MAX_POTIONS := 5
 const HP_PER_LEVEL := 10
 
 ## Enemy table for the starter slice: two types, one floor.
+## Every tuning number for a type lives here — nothing about an
+## enemy's damage, speed, or attack timing is hardcoded in enemy.gd.
 const ENEMY_STATS := {
 	"skeleton": {"hp": 30, "damage_min": 6, "damage_max": 10,
-		"xp": 25, "speed": 55.0, "attack_range": 36.0, "aggro_range": 260.0},
+		"xp": 25, "speed": 55.0, "attack_range": 36.0, "aggro_range": 260.0,
+		"attack_cooldown": 1.0, "crit_chance": 0.05},
 	"zombie": {"hp": 50, "damage_min": 8, "damage_max": 12,
-		"xp": 35, "speed": 34.0, "attack_range": 36.0, "aggro_range": 220.0},
+		"xp": 35, "speed": 34.0, "attack_range": 36.0, "aggro_range": 220.0,
+		"attack_cooldown": 1.0, "crit_chance": 0.05},
 }
 
 ## XP needed to go from `level` to `level + 1`: 100 * level.
@@ -88,7 +92,8 @@ static func potion_heal(level: int) -> int:
 
 
 ## Player damage range: fists 4–7, plus the equipped weapon's range,
-## plus total strength / 4 on both ends.
+## plus total strength / 4 on both ends (integer division — a
+## strength of 10 adds +2, not +2.5; the tests pin this).
 ## @param weapon: Equipped weapon Dictionary, or {} for fists.
 ## @param total_strength: Base strength plus equipped +str affixes.
 ## @returns: {"min": int, "max": int}.
@@ -105,6 +110,6 @@ static func player_damage_range(weapon: Dictionary, total_strength: int) -> Dict
 ## Stats row for one enemy type, or {} for an unknown type.
 ## @param enemy_type: "skeleton" or "zombie".
 ## @returns: Stats Dictionary (hp, damage_min/max, xp, speed,
-##   attack_range, aggro_range).
+##   attack_range, aggro_range, attack_cooldown, crit_chance).
 static func enemy_stats(enemy_type: String) -> Dictionary:
 	return ENEMY_STATS.get(enemy_type, {}).duplicate()

@@ -1,10 +1,14 @@
 ## A dungeon enemy: stands idle until the player comes into aggro
 ## range, chases, and attacks in range. Dies to a died signal (the
 ## main scene awards XP and rolls loot before the node frees).
+## All tuning lives in CombatLogic.ENEMY_STATS; this node only
+## moves, swings, and holds state.
 class_name LooterEnemy
 extends CharacterBody2D
 
 signal died(enemy)
+
+const FLASH_DURATION := 0.12
 
 var enemy_type := "skeleton"
 var hp := 30
@@ -15,6 +19,8 @@ var xp_value := 25
 var speed := 55.0
 var attack_range := 36.0
 var aggro_range := 260.0
+var attack_cooldown := 1.0
+var crit_chance := 0.05
 var target = null
 var dead := false
 
@@ -27,10 +33,17 @@ func _ready() -> void:
 	collision_mask = 1
 
 
-func setup(type: String, pos: Vector2) -> void:
+## Load stats for `type` and place the enemy at `pos`.
+## @param type: "skeleton" or "zombie".
+## @param pos: Spawn position (must already be walkable; see DungeonLogic).
+## @returns: False when `type` has no stats. The enemy keeps its
+##   default values in that case, so the caller must not spawn it —
+##   returning a status beats silently spawning a default-stat enemy
+##   with a mismatched name.
+func setup(type: String, pos: Vector2) -> bool:
 	var stats: Dictionary = CombatLogic.enemy_stats(type)
 	if stats.is_empty():
-		return
+		return false
 	enemy_type = type
 	max_hp = int(stats["hp"])
 	hp = max_hp
@@ -40,9 +53,12 @@ func setup(type: String, pos: Vector2) -> void:
 	speed = float(stats["speed"])
 	attack_range = float(stats["attack_range"])
 	aggro_range = float(stats["aggro_range"])
+	attack_cooldown = float(stats["attack_cooldown"])
+	crit_chance = float(stats["crit_chance"])
 	global_position = pos
 	collision_layer = 2
 	collision_mask = 1
+	return true
 
 
 func is_alive() -> bool:
@@ -72,19 +88,22 @@ func _physics_process(delta: float) -> void:
 
 
 func _attack() -> void:
-	_attack_timer = 1.0
+	_attack_timer = attack_cooldown
 	var target_armor := 0
 	if target != null and is_instance_valid(target):
 		target_armor = target.total_armor()
-	var damage: int = CombatLogic.calc_damage(damage_min, damage_max, randf(), CombatLogic.roll_crit(0.05, randf()), target_armor)
+	var damage: int = CombatLogic.calc_damage(damage_min, damage_max, randf(), CombatLogic.roll_crit(crit_chance, randf()), target_armor)
 	target.take_damage(damage)
 
 
+## @param amount: Damage to take (already armor-reduced by the attacker).
+## @param _from: Attacker, unused — kept so a future thorns or
+##   retaliation effect has someone to hit back.
 func take_damage(amount: int, _from) -> void:
 	if dead:
 		return
 	hp = maxi(0, hp - amount)
-	_flash_timer = 0.12
+	_flash_timer = FLASH_DURATION
 	queue_redraw()
 	if hp <= 0:
 		dead = true
