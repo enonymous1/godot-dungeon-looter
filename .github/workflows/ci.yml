@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Godot 4.7.2
-        uses: chickensoft-godot/setup-godot@v2
+        uses: chickensoft-games/setup-godot@v2
         with:
           version: 4.7.2
           use-dotnet: false
