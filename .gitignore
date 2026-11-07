@@ -1,0 +1,10 @@
+# Godot generated files and local state.
+.godot/
+*.import
+# Export output (built locally, never committed).
+build/
+# Local Godot runtime (editor binary / templates fetched for checks).
+.godot-runtime/
+# OS noise.
+.DS_Store
+Thumbs.db

@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot 4.7.2
+        uses: chickensoft-godot/setup-godot@v2
+        with:
+          version: 4.7.2
+          use-dotnet: false
+          include-templates: false
+      - name: Import project (headless)
+        run: godot --headless --path . --import
+      - name: Run loot logic tests (headless)
+        run: godot --headless --path . -s res://tests/test_loot_logic.gd
+      - name: Run combat logic tests (headless)
+        run: godot --headless --path . -s res://tests/test_combat_logic.gd
+      - name: Run dungeon logic tests (headless)
+        run: godot --headless --path . -s res://tests/test_dungeon_logic.gd
+      - name: Run scene smoke test (headless)
+        run: godot --headless --path . -s res://tests/test_scene_smoke.gd
+      # Exports are NOT run here: export templates are not installed
+      # in CI (1.28 GB). A Windows Desktop / Web export needs the
+      # templates from the Godot 4.7.2 release first — see README.
